@@ -11,6 +11,9 @@ export async function GET() {
         url: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT_SET',
         hasAnonKey: !!(process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
         hasServiceKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY),
+        // Show first few chars for debugging
+        anonKeyPreview: (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)?.substring(0, 20) + '...' || 'NOT_SET',
+        serviceKeyPreview: (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY)?.substring(0, 20) + '...' || 'NOT_SET',
         connection: null as any,
         propertiesCount: 0,
         clientsCount: 0,
