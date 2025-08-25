@@ -59,7 +59,10 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  swcMinify: true,
   // output: 'standalone', // Commented out for Netlify deployment
+  trailingSlash: false,
+  reactStrictMode: false,
   poweredByHeader: false,
   compress: true,
   generateEtags: false,
