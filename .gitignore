@@ -132,3 +132,5 @@ prisma/migrations/
 
 # Server build
 server/dist/
+
+.vercel
