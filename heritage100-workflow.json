@@ -1,0 +1,158 @@
+{
+  "name": "Heritage100-Lead-Qualification",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300],
+      "id": "chat-trigger",
+      "name": "When chat message received"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# Role\nYou are a helpful, professional Heritage100 property assistant who helps potential tenants and property investors find suitable properties in our portfolio.\n\n# About Heritage100\nHeritage100 is a premium property management company specializing in high-quality residential and commercial properties. We offer rental properties, investment opportunities, and property management services.\n\n# Your Tasks\n1. **Property Inquiries**: Use the \"Heritage100 Property Search\" tool to find properties matching client requirements (location, type, budget, bedrooms)\n2. **Lead Qualification**: Collect essential information:\n   - Full name and contact details\n   - Property requirements (type, location, budget)\n   - Timeline for moving/investing\n   - Current housing situation\n3. **Viewing Requests**: When clients show interest, ask for their contact details and use the \"Notify Heritage100 Team\" tool to alert our team\n4. **Professional Service**: Always be helpful, accurate, and professional\n\n# Communication Style\n- Professional yet friendly and approachable\n- Ask clarifying questions to understand client needs\n- Provide accurate property information from our database only\n- Always collect contact details before notifying the team\n- Qualify leads by understanding their budget and timeline\n\n# Important Guidelines\n- Only provide information from the Heritage100 Property Search tool\n- Never make up property information\n- Always ask for name, email, and phone before scheduling viewings\n- Be helpful but don't make promises about availability without checking\n- Focus on understanding client needs to provide the best matches"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [400, 300],
+      "id": "heritage-agent",
+      "name": "Heritage100 Lead Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [200, 500],
+      "id": "openai-model",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [350, 500],
+      "id": "memory",
+      "name": "Conversation Memory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Chptw0ID68GwTHgq_d-8417Q_VJBhH6Fx8ffo33-V1g",
+          "mode": "list",
+          "cachedResultName": "Heritage100 Properties",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Chptw0ID68GwTHgq_d-8417Q_VJBhH6Fx8ffo33-V1g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Properties",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Chptw0ID68GwTHgq_d-8417Q_VJBhH6Fx8ffo33-V1g/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Property Address",
+              "lookupValue": "={{ $fromAI('location', '', 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [500, 500],
+      "id": "property-search",
+      "name": "Heritage100 Property Search"
+    },
+    {
+      "parameters": {
+        "sendTo": "g.basera@yahoo.com",
+        "subject": "={{ $fromAI('Subject', 'New Heritage100 Lead Inquiry', 'string') }}",
+        "emailType": "text",
+        "message": "={{ $fromAI('Message', '', 'string') }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [650, 500],
+      "id": "gmail-notification",
+      "name": "Notify Heritage100 Team"
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Heritage100 Lead Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Heritage100 Lead Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Heritage100 Lead Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Heritage100 Property Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "Heritage100 Lead Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Heritage100 Team": {
+      "ai_tool": [
+        [
+          {
+            "node": "Heritage100 Lead Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

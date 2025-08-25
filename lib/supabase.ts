@@ -1,24 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '../types/supabase';
 
-// Supabase configuration (tolerant to missing envs during local dev)
-const supabaseUrl =
-  process.env.SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  'https://placeholder.supabase.co';
+// Supabase configuration with proper error handling
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 
-const supabaseAnonKey =
-  process.env.SUPABASE_ANON_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  'public-anon-key';
+// Validate required environment variables
+if (!supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co') {
+  console.error('❌ SUPABASE_URL environment variable is missing or invalid');
+  console.error('Please set SUPABASE_URL in your environment variables');
+  console.error('Expected format: https://your-project.supabase.co');
+}
 
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
-  'service-role-key';
+if (!supabaseAnonKey || supabaseAnonKey === 'public-anon-key') {
+  console.error('❌ SUPABASE_ANON_KEY environment variable is missing or invalid');
+  console.error('Please set SUPABASE_ANON_KEY in your environment variables');
+}
+
+if (!supabaseServiceKey || supabaseServiceKey === 'service-role-key') {
+  console.error('❌ SUPABASE_SERVICE_ROLE_KEY environment variable is missing or invalid');
+  console.error('Please set SUPABASE_SERVICE_ROLE_KEY in your environment variables');
+}
+
+// Use fallback values only for development
+const finalSupabaseUrl = supabaseUrl || 'https://placeholder.supabase.co';
+const finalSupabaseAnonKey = supabaseAnonKey || 'public-anon-key';
+const finalSupabaseServiceKey = supabaseServiceKey || 'service-role-key';
 
 // Client for frontend operations (with RLS)
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(finalSupabaseUrl, finalSupabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -32,7 +43,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 // Admin client for backend operations (bypasses RLS when needed)
-export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+export const supabaseAdmin = createClient<Database>(finalSupabaseUrl, finalSupabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -40,7 +51,7 @@ export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseService
 });
 
 // Connection pool configuration for high-performance operations
-export const supabasePool = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+export const supabasePool = createClient<Database>(finalSupabaseUrl, finalSupabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
