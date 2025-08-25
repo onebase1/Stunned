@@ -3,16 +3,28 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI (lazy initialization to avoid build-time errors)
+let openai: OpenAI | null = null;
+const getOpenAI = () => {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+};
 
-// Initialize Supabase
-const supabase = createClient<Database>(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Initialize Supabase (lazy initialization to avoid build-time errors)
+let supabase: any = null;
+const getSupabase = () => {
+  if (!supabase && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabase = createClient<Database>(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+  }
+  return supabase;
+};
 
 // Database schema information for AI context
 const DATABASE_SCHEMA = `
@@ -37,8 +49,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
+    const openaiClient = getOpenAI();
+    const supabaseClient = getSupabase();
+
+    if (!openaiClient) {
+      return NextResponse.json({ error: 'OpenAI not configured' }, { status: 500 });
+    }
+
+    if (!supabaseClient) {
+      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
+    }
+
     // Analyze the user's intent using OpenAI
-    const intentAnalysis = await openai.chat.completions.create({
+    const intentAnalysis = await openaiClient.chat.completions.create({
       model: 'gpt-4',
       messages: [
         {
@@ -109,9 +132,14 @@ Respond with JSON only: {"intent": "query|insert|update", "table": "table_name",
 
 async function handleQuery(intent: any, message: string) {
   const { table, sql_hint } = intent;
-  
+  const supabaseClient = getSupabase();
+
+  if (!supabaseClient) {
+    return { success: false, error: 'Database not configured' };
+  }
+
   try {
-    let query = supabase.from(table).select('*');
+    let query = supabaseClient.from(table).select('*');
     
     // Apply basic filters based on common patterns
     if (message.toLowerCase().includes('active')) {
@@ -136,9 +164,14 @@ async function handleQuery(intent: any, message: string) {
 
 async function handleInsert(intent: any, message: string) {
   const { table } = intent;
-  
+  const openaiClient = getOpenAI();
+
+  if (!openaiClient) {
+    return { success: false, error: 'OpenAI not configured' };
+  }
+
   // Extract data from message using OpenAI
-  const dataExtraction = await openai.chat.completions.create({
+  const dataExtraction = await openaiClient.chat.completions.create({
     model: 'gpt-4',
     messages: [
       {
@@ -186,9 +219,14 @@ If missing required data, return: {"missing": ["field1", "field2"], "message": "
 
 async function handleUpdate(intent: any, message: string) {
   const { table } = intent;
-  
+  const openaiClient = getOpenAI();
+
+  if (!openaiClient) {
+    return { success: false, error: 'OpenAI not configured' };
+  }
+
   // Extract update data and conditions using OpenAI
-  const updateExtraction = await openai.chat.completions.create({
+  const updateExtraction = await openaiClient.chat.completions.create({
     model: 'gpt-4',
     messages: [
       {
@@ -212,8 +250,14 @@ If unclear, return: {"error": "Please specify which record to update and what to
     return { success: false, error: updateData.error };
   }
 
+  const supabaseClient = getSupabase();
+
+  if (!supabaseClient) {
+    return { success: false, error: 'Database not configured' };
+  }
+
   try {
-    let query = supabase.from(table).update(updateData.updates);
+    let query = supabaseClient.from(table).update(updateData.updates);
     
     // Apply conditions
     Object.entries(updateData.conditions).forEach(([key, value]) => {
@@ -235,7 +279,13 @@ If unclear, return: {"error": "Please specify which record to update and what to
 }
 
 async function generateAnswer(question: string, data: any, query: string) {
-  const response = await openai.chat.completions.create({
+  const openaiClient = getOpenAI();
+
+  if (!openaiClient) {
+    return 'AI assistant not available';
+  }
+
+  const response = await openaiClient.chat.completions.create({
     model: 'gpt-4',
     messages: [
       {

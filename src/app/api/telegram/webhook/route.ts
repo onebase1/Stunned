@@ -3,16 +3,28 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI (lazy initialization to avoid build-time errors)
+let openai: OpenAI | null = null;
+const getOpenAI = () => {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+};
 
-// Initialize Supabase
-const supabase = createClient<Database>(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Initialize Supabase (lazy initialization to avoid build-time errors)
+let supabase: any = null;
+const getSupabase = () => {
+  if (!supabase && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabase = createClient<Database>(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+  }
+  return supabase;
+};
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -141,7 +153,13 @@ async function handleVoiceMessage(message: any, chatId: number) {
       const mimeType = fileExtension === 'oga' ? 'audio/ogg' : `audio/${fileExtension}`;
 
       // Convert to text using OpenAI Whisper
-      const transcription = await openai.audio.transcriptions.create({
+      const openaiClient = getOpenAI();
+      if (!openaiClient) {
+        await sendMessage(chatId, '❌ Voice processing not available');
+        return;
+      }
+
+      const transcription = await openaiClient.audio.transcriptions.create({
         file: new File([audioBuffer], `voice.${fileExtension}`, { type: mimeType }),
         model: 'whisper-1',
         language: 'en', // Force English language detection
@@ -170,7 +188,13 @@ async function handleVoiceMessage(message: any, chatId: number) {
 
 async function handlePropertiesCommand(chatId: number, params: string) {
   try {
-    let query = supabase.from('properties').select('*');
+    const supabaseClient = getSupabase();
+    if (!supabaseClient) {
+      await sendMessage(chatId, '❌ Database not available');
+      return;
+    }
+
+    let query = supabaseClient.from('properties').select('*');
     
     if (params.includes('available')) {
       query = query.eq('available', true);
@@ -192,7 +216,13 @@ async function handlePropertiesCommand(chatId: number, params: string) {
 
 async function handleClientsCommand(chatId: number, params: string) {
   try {
-    let query = supabase.from('clients').select('*');
+    const supabaseClient = getSupabase();
+    if (!supabaseClient) {
+      await sendMessage(chatId, '❌ Database not available');
+      return;
+    }
+
+    let query = supabaseClient.from('clients').select('*');
     
     if (params.includes('active')) {
       query = query.eq('status', 'active');
@@ -214,7 +244,13 @@ async function handleClientsCommand(chatId: number, params: string) {
 
 async function handleContractsCommand(chatId: number, params: string) {
   try {
-    let query = supabase.from('contracts').select('*');
+    const supabaseClient = getSupabase();
+    if (!supabaseClient) {
+      await sendMessage(chatId, '❌ Database not available');
+      return;
+    }
+
+    let query = supabaseClient.from('contracts').select('*');
     
     if (params.includes('signed')) {
       query = query.eq('contract_status', 'signed');
@@ -233,10 +269,16 @@ async function handleContractsCommand(chatId: number, params: string) {
 
 async function handleSummaryCommand(chatId: number) {
   try {
+    const supabaseClient = getSupabase();
+    if (!supabaseClient) {
+      await sendMessage(chatId, '❌ Database not available');
+      return;
+    }
+
     const [clientsCount, propertiesCount, contractsCount] = await Promise.all([
-      supabase.from('clients').select('*', { count: 'exact', head: true }),
-      supabase.from('properties').select('*', { count: 'exact', head: true }),
-      supabase.from('contracts').select('*', { count: 'exact', head: true }),
+      supabaseClient.from('clients').select('*', { count: 'exact', head: true }),
+      supabaseClient.from('properties').select('*', { count: 'exact', head: true }),
+      supabaseClient.from('contracts').select('*', { count: 'exact', head: true }),
     ]);
     
     const message = `📊 **Heritage100 Dashboard Summary**\n\n` +
