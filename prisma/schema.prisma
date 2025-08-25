@@ -1,0 +1,250 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Client {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName            String    @map("first_name") @db.VarChar(100)
+  lastName             String    @map("last_name") @db.VarChar(100)
+  email                String    @unique @db.VarChar(255)
+  phone                String?   @db.VarChar(20)
+  whatsappNumber       String?   @map("whatsapp_number") @db.VarChar(20)
+  budgetMin            Decimal?  @map("budget_min") @db.Decimal(12, 2)
+  budgetMax            Decimal?  @map("budget_max") @db.Decimal(12, 2)
+  preferredBedrooms    Int?      @map("preferred_bedrooms")
+  preferredLocation    String?   @map("preferred_location") @db.VarChar(255)
+  specialRequirements  String?   @map("special_requirements") @db.Text
+  leadSource           String?   @map("lead_source") @db.VarChar(100)
+  currentStage         String    @default("lead") @map("current_stage") @db.VarChar(50)
+  priorityLevel        String    @default("medium") @map("priority_level") @db.VarChar(20)
+  assignedAgent        String?   @map("assigned_agent") @db.VarChar(100)
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
+  lastContactDate      DateTime? @map("last_contact_date")
+  nextFollowUpDate     DateTime? @map("next_follow_up_date")
+  status               String    @default("active") @db.VarChar(20)
+
+  // Relations
+  propertyMatches      ClientPropertyMatch[]
+  contracts            Contract[]
+  paymentPlans         PaymentPlan[]
+  payments             Payment[]
+  interactions         Interaction[]
+  stageRecords         ClientStage[]
+  notifications        Notification[]
+
+  @@map("clients")
+}
+
+model Property {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyName            String    @map("property_name") @db.VarChar(255)
+  propertyType            String?   @map("property_type") @db.VarChar(100)
+  bedrooms                Int?
+  bathrooms               Decimal?  @db.Decimal(3, 1)
+  squareFeet              Int?      @map("square_feet")
+  price                   Decimal?  @db.Decimal(12, 2)
+  location                String?   @db.VarChar(255)
+  description             String?   @db.Text
+  amenities               String[]  @db.Text
+  constructionStatus      String?   @map("construction_status") @db.VarChar(50)
+  completionPercentage    Int       @default(0) @map("completion_percentage")
+  estimatedCompletionDate DateTime? @map("estimated_completion_date") @db.Date
+  actualCompletionDate    DateTime? @map("actual_completion_date") @db.Date
+  images                  String[]  @db.Text
+  floorPlanUrl            String?   @map("floor_plan_url") @db.Text
+  virtualTourUrl          String?   @map("virtual_tour_url") @db.Text
+  available               Boolean   @default(true)
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  clientMatches           ClientPropertyMatch[]
+  contracts               Contract[]
+  constructionUpdates     ConstructionUpdate[]
+
+  @@map("properties")
+}
+
+model ClientPropertyMatch {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId     String    @map("client_id") @db.Uuid
+  propertyId   String    @map("property_id") @db.Uuid
+  matchScore   Int?      @map("match_score")
+  status       String?   @db.VarChar(50)
+  viewingDate  DateTime? @map("viewing_date")
+  offerAmount  Decimal?  @map("offer_amount") @db.Decimal(12, 2)
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  property     Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("client_property_matches")
+}
+
+model Contract {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId               String    @map("client_id") @db.Uuid
+  propertyId             String    @map("property_id") @db.Uuid
+  contractNumber         String?   @unique @map("contract_number") @db.VarChar(100)
+  contractType           String?   @map("contract_type") @db.VarChar(50)
+  totalAmount            Decimal?  @map("total_amount") @db.Decimal(12, 2)
+  downPayment            Decimal?  @map("down_payment") @db.Decimal(12, 2)
+  contractDate           DateTime? @map("contract_date") @db.Date
+  expectedCompletionDate DateTime? @map("expected_completion_date") @db.Date
+  contractStatus         String?   @map("contract_status") @db.VarChar(50)
+  contractFileUrl        String?   @map("contract_file_url") @db.Text
+  signedDate             DateTime? @map("signed_date")
+  termsConditions        String?   @map("terms_conditions") @db.Text
+  specialClauses         String?   @map("special_clauses") @db.Text
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  client                 Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  property               Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  paymentPlans           PaymentPlan[]
+
+  @@map("contracts")
+}
+
+model PaymentPlan {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId            String    @map("contract_id") @db.Uuid
+  clientId              String    @map("client_id") @db.Uuid
+  totalAmount           Decimal?  @map("total_amount") @db.Decimal(12, 2)
+  downPayment           Decimal?  @map("down_payment") @db.Decimal(12, 2)
+  installmentAmount     Decimal?  @map("installment_amount") @db.Decimal(12, 2)
+  installmentFrequency  String?   @map("installment_frequency") @db.VarChar(20)
+  numberOfInstallments  Int?      @map("number_of_installments")
+  startDate             DateTime? @map("start_date") @db.Date
+  endDate               DateTime? @map("end_date") @db.Date
+  status                String    @default("active") @db.VarChar(20)
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  contract              Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  client                Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payments              Payment[]
+
+  @@map("payment_plans")
+}
+
+model Payment {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentPlanId         String    @map("payment_plan_id") @db.Uuid
+  clientId              String    @map("client_id") @db.Uuid
+  installmentNumber     Int?      @map("installment_number")
+  amount                Decimal?  @db.Decimal(12, 2)
+  dueDate               DateTime? @map("due_date") @db.Date
+  paidDate              DateTime? @map("paid_date") @db.Date
+  paymentMethod         String?   @map("payment_method") @db.VarChar(50)
+  paymentStatus         String    @map("payment_status") @db.VarChar(20)
+  transactionReference  String?   @map("transaction_reference") @db.VarChar(255)
+  notes                 String?   @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  paymentPlan           PaymentPlan @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
+  client                Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Interaction {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId              String    @map("client_id") @db.Uuid
+  interactionType       String?   @map("interaction_type") @db.VarChar(50)
+  channel               String?   @db.VarChar(50)
+  direction             String?   @db.VarChar(20)
+  subject               String?   @db.VarChar(255)
+  messageContent        String?   @map("message_content") @db.Text
+  attachments           String[]  @db.Text
+  agentName             String?   @map("agent_name") @db.VarChar(100)
+  interactionDate       DateTime  @default(now()) @map("interaction_date")
+  responseTimeMinutes   Int?      @map("response_time_minutes")
+  sentiment             String?   @db.VarChar(20)
+  tags                  String[]  @db.Text
+  resolved              Boolean   @default(false)
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  client                Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("interactions")
+}
+
+model ConstructionUpdate {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId            String    @map("property_id") @db.Uuid
+  updateDate            DateTime? @map("update_date") @db.Date
+  completionPercentage  Int?      @map("completion_percentage")
+  milestone             String?   @db.VarChar(255)
+  description           String?   @db.Text
+  images                String[]  @db.Text
+  videoUrl              String?   @map("video_url") @db.Text
+  nextMilestone         String?   @map("next_milestone") @db.VarChar(255)
+  estimatedNextDate     DateTime? @map("estimated_next_date") @db.Date
+  weatherDelays         Int       @default(0) @map("weather_delays")
+  budgetStatus          String?   @map("budget_status") @db.VarChar(50)
+  qualityRating         Int?      @map("quality_rating")
+  contractorNotes       String?   @map("contractor_notes") @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  property              Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("construction_updates")
+}
+
+model ClientStage {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId      String    @map("client_id") @db.Uuid
+  stageName     String    @map("stage_name") @db.VarChar(50)
+  stageNumber   Int?      @map("stage_number")
+  enteredDate   DateTime  @default(now()) @map("entered_date")
+  completedDate DateTime? @map("completed_date")
+  status        String    @db.VarChar(20)
+  notes         String?   @db.Text
+  durationDays  Int?      @map("duration_days")
+  nextAction    String?   @map("next_action") @db.VarChar(255)
+  assignedTo    String?   @map("assigned_to") @db.VarChar(100)
+
+  // Relations
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("client_stages")
+}
+
+model Notification {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId          String?   @map("client_id") @db.Uuid
+  notificationType  String?   @map("notification_type") @db.VarChar(50)
+  title             String?   @db.VarChar(255)
+  message           String?   @db.Text
+  channel           String?   @db.VarChar(50)
+  scheduledDate     DateTime? @map("scheduled_date")
+  sentDate          DateTime? @map("sent_date")
+  status            String    @db.VarChar(20)
+  recipientResponse String?   @map("recipient_response") @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  client            Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
